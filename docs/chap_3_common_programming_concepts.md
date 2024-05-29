@@ -436,7 +436,7 @@ This expression:
 }
 
 ```
-is a block that, in this case, evaluates to 4. That value gets bound to y as part of the let statement. Note that the x + 1 line doesn’t have a semicolon at the end, which is unlike most of the lines you’ve seen so far. Expressions do not include ending semicolons. If you add a semicolon to the end of an expression, you turn it into a statement, and it will then not return a value. Keep this in mind as you explore function return values and expressions next.
+is a block that, in this case, evaluates to 4. That value gets bound to y as part of the let statement. Note that the x + 1 line doesn’t have a semicolon at the end, which is unlike most of the lines you’ve seen so far. Expressions do not include ending semicolons. **If you add a semicolon to the end of an expression, you turn it into a statement, and it will then not return a value**. Keep this in mind as you explore function return values and expressions next.
 
 
 ### Functions with return values
@@ -458,3 +458,94 @@ fn main() {
 There are no function calls, macros, or even let statements in the five function—just the number 5 by itself. That’s a perfectly valid function in Rust. Note that the function’s return type is specified too, as -> i32
 
 
+The 5 in five is the function’s return value, which is why the return type is i32. Let’s examine this in more detail. There are two important bits: first, the line let x = five(); shows that we’re using the return value of a function to initialize a variable. Because the function five returns a 5, that line is the same as the following:
+
+```rust
+let x = 5;
+```
+
+Second, the five function has no parameters and defines the type of the return value, but the body of the function is a lonely 5 with no semicolon because it’s an expression whose value we want to return.
+
+Let’s look at another example:
+
+```rust
+fn main() {
+    let x = plus_one(5);
+
+    println!("The value of x is: {x}");
+}
+
+fn plus_one(x: i32) -> i32 {
+    x + 1
+}
+
+```
+Running this code will print The value of x is: 6. But if we place a semicolon at the end of the line containing x + 1, changing it from an expression to a statement, we’ll get an error:
+
+
+```rust
+fn main() {
+    let x = plus_one(5);
+
+    println!("The value of x is: {x}");
+}
+
+fn plus_one(x: i32) -> i32 {
+    x + 1;
+}
+```
+
+Compiling this code produces an error, as follows:
+```bash
+$ cargo run
+Compiling functions v0.1.0 (file:///projects/functions)
+error[E0308]: mismatched types
+--> src/main.rs:7:24
+|
+7 | fn plus_one(x: i32) -> i32 {
+|    --------            ^^^ expected `i32`, found `()`
+|    |
+|    implicitly returns `()` as its body has no tail or `return` expression
+8 |     x + 1;
+|          - help: remove this semicolon to return this value
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `functions` (bin "functions") due to 1 previous error
+```
+The main error message, mismatched types, reveals the core issue with this code. The definition of the function plus_one says that it will return an i32, but statements don’t evaluate to a value, which is expressed by (), the unit type. Therefore, nothing is returned, which contradicts the function definition and results in an error. In this output, Rust provides a message to possibly help rectify this issue: it suggests removing the semicolon, which would fix the error.
+
+## Comments
+
+All programmers strive to make their code easy to understand, but sometimes extra explanation is warranted. In these cases, programmers leave comments in their source code that the compiler will ignore but people reading the source code may find useful.
+
+Here’s a simple comment:
+
+```rust
+// hello, world
+```
+
+In Rust, the idiomatic comment style starts a comment with two slashes, and the comment continues until the end of the line. For comments that extend beyond a single line, you’ll need to include // on each line, like this:
+
+```rust
+// So we’re doing something complicated here, long enough that we need
+// multiple lines of comments to do it! Whew! Hopefully, this comment will
+// explain what’s going on.
+```
+Comments can also be placed at the end of lines containing code:
+
+```rust
+fn main() {
+    let lucky_number = 7; // I’m feeling lucky today
+}
+```
+But you’ll more often see them used in this format, with the comment on a separate line above the code it’s annotating:
+
+
+```rust
+fn main() {
+    // I’m feeling lucky today
+    let lucky_number = 7;
+}
+
+```
+
+Rust also has another kind of comment, documentation comments,
