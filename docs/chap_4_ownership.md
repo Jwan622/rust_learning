@@ -23,6 +23,29 @@ When your code calls a function, the values passed into the function (including,
 Keeping track of what parts of code are using what data on the heap, minimizing the amount of duplicate data on the heap, and cleaning up unused data on the heap so you don’t run out of space are all problems that ownership addresses. Once you understand ownership, you won’t need to think about the stack and the heap very often, but knowing that the main purpose of ownership is to manage heap data can help explain why it works the way it does.
 
 
+### Ownerships basics
+
+Ownership is a central concept in Rust that ensures memory safety without needing a garbage collector. Each value in Rust has a variable that is its owner. There can only be one owner at a time, and when the owner goes out of scope, the value is dropped (i.e., the memory is freed).
+
+Here's a simple example to illustrate ownership:
+
+```rust
+fn main() {
+    let s1 = String::from("hello"); // s1 owns the String "hello"
+    let s2 = s1; // Ownership is moved to s2
+    // println!("{}", s1); // Error: s1 is no longer valid
+    println!("{}", s2); // This works
+}
+```
+
+In this example:
+
+`s1` owns the String "hello".
+When `s2` is assigned `s1`, ownership is transferred to s2. s1 is no longer valid after this point.
+
+
+
+
 ### Ownership Rules
 First, let’s take a look at the ownership rules. Keep these rules in mind as we work through the examples that illustrate them:
 
@@ -354,9 +377,9 @@ Note that we pass `&s1` into calculate_length and, in its definition, we take `&
 
 ![figure_4_5](images/figure_4_5)
 
-I think s is the reference.
+I think `s` is the reference.
 
-Note: The opposite of referencing by using & is dereferencing, which is accomplished with the dereference operator, *. We’ll see some uses of the dereference operator in Chapter 8 and discuss details of dereferencing in Chapter 15.
+Note: The opposite of referencing by using & is dereferencing, which is accomplished with the dereference operator, `*`. We’ll see some uses of the dereference operator in Chapter 8 and discuss details of dereferencing in Chapter 15.
 
 Let’s take a closer look at the function call here:
 ```rust
