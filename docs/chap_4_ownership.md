@@ -604,7 +604,116 @@ This works without any problems. **Ownership is moved out**, and nothing is deal
 
 Slices let you reference a contiguous sequence of elements in a collection rather than the whole collection. A slice is a kind of reference, so it does not have ownership.
 
+Internally, the slice data structure stores the starting position and the length of the slice, which corresponds to ending_index minus starting_index
+
+![figure_4_6](images/figure_4_6.svg)
+
 Here’s a small programming problem: write a function that takes a string of words separated by spaces and returns the first word it finds in that string. If the function doesn’t find a space in the string, the whole string must be one word, so the entire string should be returned.
+
+Let's look at this function using slices:
+
+```rust
+fn first_word(s: &String) -> &str {
+    let bytes = s.as_bytes();
+
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+
+    &s[..]
+}
+```
+
+We get the index for the end of the word the same way we did in Listing 4-7, by looking for the first occurrence of a space. When we find a space, we return a string slice using the start of the string and the index of the space as the starting and ending indices.
+
+Now when we call first_word, we get back a single value that is tied to the underlying data. The value is made up of a reference to the starting point of the slice and the number of elements in the slice.
+
+Returning a slice would also work for a second_word function:
+```rust
+fn second_word(s: &String) -> &str {
+```
+
+We now have a straightforward API that’s much harder to mess up because the compiler will ensure the references into the String remain valid.
+
+Slices make this bug impossible and let us know we have a problem with our code much sooner. Using the slice version of first_word will throw a compile-time error:
+
+```rust
+fn main() {
+    let mut s = String::from("hello world");
+
+    let word = first_word(&s);
+
+    s.clear(); // error!
+
+    println!("the first word is: {}", word);
+}
+```
+
+Here’s the compiler error:
+
+```bash
+$ cargo run
+Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable
+--> src/main.rs:18:5
+|
+16 |     let word = first_word(&s);
+|                           -- immutable borrow occurs here
+17 |
+18 |     s.clear(); // error!
+|     ^^^^^^^^^ mutable borrow occurs here
+19 |
+20 |     println!("the first word is: {}", word);
+|                                       ---- immutable borrow later used here
+```
+
+Here's a more detailed explanation:
+
+Creating a Reference: When you call `first_word(&s)`, you are passing a reference to s into the function. Inside the first_word function, the string slice `&s[0..i]` is created and returned. This slice is a reference to a part of the string `s`.
+
+Holding the Reference: The variable `word` holds this reference to the string slice. It means that word points to a specific range of characters within s.
+
+Invalidation by Mutation: When you call `s.clear()`, it tries to clear the string `s`, which invalidates any references to s because the underlying data that those references point to is being modified or removed. Rust's borrow checker ensures that you cannot modify the data while references to it still exist.
+
+The error occurs because s.clear() attempts to modify s while word still holds a reference to part of s. This violates Rust's borrowing rules, which ensure memory safety by preventing such scenarios.
+
+if the `println!` statement didn't exist, the code would be fine because the reference to the part of the string s held by `word` would not be used after calling `s.clear()`. Rust's borrow checker ensures that references are only valid for as long as they are used, so if `word` is not used after `s.clear()`, there would be no borrowing conflict.
+
+### String literals are slices
+
+Recall that we talked about string literals being stored inside the binary. Now that we know about slices, we can properly understand string literals:
+
+```rust
+let s = "Hello, world!";
+```
+
+The type of s here is &str: it’s a slice pointing to that specific point of the binary. This is also why string literals are immutable; &str is an immutable reference.
+
+
+### Other slices
+
+String slices, as you might imagine, are specific to strings. But there’s a more general slice type too. Consider this array:
+
+```rust
+let a = [1, 2, 3, 4, 5];
+```
+Just as we might want to refer to part of a string, we might want to refer to part of an array. We’d do so like this:
+
+```rust
+let a = [1, 2, 3, 4, 5];
+
+let slice = &a[1..3];
+
+assert_eq!(slice, &[2, 3]);
+```
+
+This slice has the type `&[i32]`. It works the same way as string slices do, by storing a reference to the first element and a length.
+
+The Rust language gives you control over your memory usage in the same way as other systems programming languages, but having the owner of data automatically clean up that data when the owner goes out of scope means you don’t have to write and debug extra code to get this control.
+
+Ownership affects how lots of other parts of Rust work, so we’ll talk about these concepts further throughout the rest of the book. Let’s move on to Chapter 5 and look at grouping pieces of data together in a struct.
 
 
 # Terms to review
@@ -615,3 +724,4 @@ Here’s a small programming problem: write a function that takes a string of wo
 - slices
 - mutable references
 - immutable references
+- slices
