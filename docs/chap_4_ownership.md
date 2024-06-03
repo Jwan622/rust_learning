@@ -739,6 +739,20 @@ The Rust language gives you control over your memory usage in the same way as ot
 Ownership affects how lots of other parts of Rust work, so we’ll talk about these concepts further throughout the rest of the book. Let’s move on to Chapter 5 and look at grouping pieces of data together in a struct.
 
 
+## Why does ownership for functions make sense?
+
+- Preventing Use-After-Free Errors:
+When a function takes ownership of a value, it is responsible for the value's lifetime. Once the function is done with the value, it gets dropped. This prevents the original owner from accessing a potentially invalid or freed memory.
+
+- Ensuring Clear Ownership:
+By transferring ownership explicitly, Rust makes it clear which part of the code is responsible for a value at any given time. This clarity helps avoid confusion about who owns and can modify the data.
+
+- Avoiding Data Races:
+When data is passed to a function by value (transferring ownership), it ensures that no other part of the code can modify the data concurrently. This eliminates data races, making concurrent programming safer.
+
+- Memory Safety Without Garbage Collection:
+Rust's ownership model allows for deterministic memory management. When a value goes out of scope, Rust knows it can safely deallocate the memory. This avoids the need for a garbage collector, improving performance and predictability.
+
 # Terms to review
 
 - ownership
