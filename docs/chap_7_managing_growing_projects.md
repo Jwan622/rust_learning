@@ -537,6 +537,54 @@ Before this change, external code would have to call the add_to_waitlist functio
 
 Re-exporting is useful when the internal structure of your code is different from how programmers calling your code would think about the domain. For example, in this restaurant metaphor, the people running the restaurant think about “front of house” and “back of house.” But customers visiting a restaurant probably won’t think about the parts of the restaurant in those terms. With pub use, we can write our code with one structure but expose a different structure. External users won't see `front_of_house` with `pub use` here.
 
+## Example of modularizing a package
+
+This work is in the `restaurant2` folder
+
+Note that you only need to load a file using a mod declaration once in your module tree. Once the compiler knows the file is part of the project (and knows where in the module tree the code resides because of where you’ve put the mod statement), other files in your project should refer to the loaded file’s code using a path to where it was declared, as covered in the “Paths for Referring to an Item in the Module Tree” section. In other words, mod is not an “include” operation that you may have seen in other programming languages.
+
+Next, we’ll extract the hosting module to its own file. The process is a bit different because hosting is a child module of front_of_house, not of the root module. We’ll place the file for hosting in a new directory that will be named for its ancestors in the module tree, in this case src/front_of_house/.
+
+To start moving hosting, we change src/front_of_house.rs to contain only the declaration of the hosting module:
+
+```rust
+// Filename: src/front_of_house.rs
+pub mod hosting;
+```
+
+Then we create a `src/front_of_house` directory and a file `hosting.rs` to contain the definitions made in the hosting module:
+
+```rust
+// Filename: src/front_of_house/hosting.rs
+pub fn add_to_waitlist() {}
+```
+
+If we instead put `hosting.rs` in the `src` directory, the compiler would expect the `hosting.rs` code to be in a hosting module declared in the crate root, and not declared as a child of the front_of_house module (`we wrote pub mod hosting in the src/front_of_house.rs file so it's a child of front_of_house module`). The compiler’s rules for which files to check for which modules’ code means the directories and files more closely match the module tree.
+
+
+
+We’ve moved each module’s code to a separate file, and the module tree remains the same. The function calls in eat_at_restaurant will work without any modification, even though the definitions live in different files. This technique lets you move modules to new files as they grow in size.
+
+Note that the pub use crate::front_of_house::hosting statement in src/lib.rs also hasn’t changed, nor does use have any impact on what files are compiled as part of the crate. The mod keyword declares modules, and Rust looks in a file with the same name as the module for the code that goes into that module.
+
+### When would you just use curlies?
+The file systems and `pub mod` are ways to extract the curly braces code:
+
+You would use curly braces to define an inline module (also known as an anonymous module or a module inline with its parent) when you want to keep related items together within a specific scope without creating a separate file or directory for that module. Here's when you might use curly braces to define an inline module:
+
+Organizing Related Items:
+You want to group related functions, structs, enums, or traits together under a common namespace within a specific module or function.
+This is useful for keeping the code organized and easier to understand, especially when the items are closely related and used only within that module or function.
+
+Avoiding File or Directory Overhead:
+- You want to avoid creating separate files or directories for small or closely related pieces of code that are not intended to be reused or exposed outside the parent module or function.
+
+
+
+## Summary
+Rust lets you split a package into multiple crates and a crate into modules so you can refer to items defined in one module from another module. You can do this by specifying absolute or relative paths. These paths can be brought into scope with a use statement so you can use a shorter path for multiple uses of the item in that scope. Module code is private by default, but you can make definitions public by adding the pub keyword.
+
+
 
 ## Topics
 
