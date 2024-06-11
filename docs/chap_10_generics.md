@@ -721,7 +721,7 @@ fn main() {
 // Listing 10-19: A main function that calls the longest function to find the longer of two string slices
 ```
 
-Note that we want the function to take string slices, which are references, rather than strings, because we don’t want the longest function to take ownership of its parameters. Refer to the “String Slices as Parameters” section in Chapter 4 for more discussion about why the parameters we use in Listing 10-19 are the ones we want.
+**Note that we want the function to take string slices, which are references, rather than strings, because we don’t want the longest function to take ownership of its parameters.** (lifetimes only apply to string references). Refer to the “String Slices as Parameters” section in Chapter 4 for more discussion about why the parameters we use in Listing 10-19 are the ones we want.
 
 If we try to implement the longest function as shown in Listing 10-20, it won’t compile.
 
@@ -849,14 +849,13 @@ fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
 
 The function signature now tells Rust that for some lifetime 'a, the function takes two parameters, both of which are string slices that live **at least** as long as lifetime 'a. The function signature also tells Rust that the string slice returned from the function will live **at least** as long as lifetime 'a. In practice, it means that the lifetime of the reference returned by the longest function is the same as the **smaller** of the lifetimes of the values referred to by the function arguments. These relationships are what we want Rust to use when analyzing this code.
 
-Remember, when we specify the lifetime parameters in this function signature, we’re not changing the lifetimes of any values passed in or returned. Rather, we’re specifying that the borrow checker should reject any values that don’t adhere to these constraints. Note that the longest function doesn’t need to know exactly how long x and y will live, only that some scope can be substituted for 'a that will satisfy this signature.
+Remember, when we specify the lifetime parameters in this function signature, we’re not changing the lifetimes of any values passed in or returned. Rather, we’re **specifying that the borrow checker should reject any values that don’t adhere to these constraints.** Note that the longest function doesn’t need to know exactly how long x and y will live, only that some scope can be substituted for 'a that will satisfy this signature.
 
 When annotating lifetimes in functions, the annotations go in the function signature, not in the function body. The lifetime annotations become part of the contract of the function, much like the types in the signature. Having function signatures contain the lifetime contract means the analysis the Rust compiler does can be simpler. If there’s a problem with the way a function is annotated or the way it is called, the compiler errors can point to the part of our code and the constraints more precisely. If, instead, the Rust compiler made more inferences about what we intended the relationships of the lifetimes to be, the compiler might only be able to point to a use of our code many steps away from the cause of the problem.
 
-When we pass concrete references to longest, the concrete lifetime that is substituted for 'a is the part of the scope of x that **overlaps** with the scope of y. In other words, the generic lifetime 'a will get the concrete lifetime that is equal to the **smaller** of the lifetimes of x and y. Because we’ve annotated the returned reference with the same lifetime parameter 'a, the returned reference will also be valid for the length of the **smaller** of the lifetimes of x and y.
+**When we pass concrete references to longest, the concrete lifetime that is substituted for 'a is the part of the scope of x that **overlaps** with the scope of y**. In other words, the generic lifetime 'a will get the concrete lifetime that is equal to the **smaller** of the lifetimes of x and y. Because we’ve annotated the returned reference with the same lifetime parameter `'a`, the returned reference will also be valid for the length of the **smaller** of the lifetimes of x and y.
 
-this works:
-
+This works:
 ```rust
 fn main() {
     let string1 = String::from("long string is long");

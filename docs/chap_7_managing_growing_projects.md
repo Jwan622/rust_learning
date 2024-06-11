@@ -258,25 +258,25 @@ Unfortunately, the code in Listing 7-5 still results in an error, as shown in Li
 $ cargo build
 Compiling restaurant v0.1.0 (file:///projects/restaurant)
 error[E0603]: function `add_to_waitlist` is private
---> src/lib.rs:9:37
+--> src/main.rs:9:37
 |
 9 |     crate::front_of_house::hosting::add_to_waitlist();
 |                                     ^^^^^^^^^^^^^^^ private function
 |
 note: the function `add_to_waitlist` is defined here
---> src/lib.rs:3:9
+--> src/main.rs:3:9
 |
 3 |         fn add_to_waitlist() {}
 |         ^^^^^^^^^^^^^^^^^^^^
 
 error[E0603]: function `add_to_waitlist` is private
---> src/lib.rs:12:30
+--> src/main.rs:12:30
 |
 12 |     front_of_house::hosting::add_to_waitlist();
 |                              ^^^^^^^^^^^^^^^ private function
 |
 note: the function `add_to_waitlist` is defined here
---> src/lib.rs:3:9
+--> src/main.rs:3:9
 |
 3  |         fn add_to_waitlist() {}
 |         ^^^^^^^^^^^^^^^^^^^^
@@ -454,7 +454,7 @@ The compiler error shows that the shortcut no longer applies within the customer
 $ cargo build
 Compiling restaurant v0.1.0 (file:///projects/restaurant)
 error[E0433]: failed to resolve: use of undeclared crate or module `hosting`
---> src/lib.rs:11:9
+--> src/main.rs:11:9
 |
 11 |         hosting::add_to_waitlist();
 |         ^^^^^^^ use of undeclared crate or module `hosting`
@@ -465,7 +465,7 @@ help: consider importing this module through its public re-export
 |
 
 warning: unused import: `crate::front_of_house::hosting`
---> src/lib.rs:7:5
+--> src/main.rs:7:5
 |
 7 | use crate::front_of_house::hosting;
 |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
