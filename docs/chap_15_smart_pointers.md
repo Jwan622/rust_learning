@@ -290,4 +290,154 @@ error[E0614]: type `MyBox<{integer}>` cannot be dereferenced
 For more information about this error, try `rustc --explain E0614`.
 error: could not compile `deref-example` (bin "deref-example") due to 1 previous error
 ```
-Our MyBox<T> type **can’t be dereferenced because we haven’t implemented that ability on our type.** To enable dereferencing with the * operator, we implement the Deref trait.
+Our MyBox<T> type **can’t be dereferenced because we haven’t implemented that ability on our type. To enable dereferencing with the * operator, we implement the Deref trait.**
+
+### Treating a Type Like a Reference by Implementing the Deref Trait
+
+As discussed in the “Implementing a Trait on a Type” section of Chapter 10, **to implement a trait, we need to provide implementations for the trait’s required methods. The Deref trait, provided by the standard library, requires us to implement one method named deref** that borrows self and returns a reference to the inner data. Listing 15-10 contains an implementation of Deref to add to the definition of MyBox:
+
+
+
+
+```rust
+use std::ops::Deref;
+
+impl<T> Deref for MyBox<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0 // access first value in a tuple struct. notice how it returns a reference which the compiler can deference/follow to the actual value.
+    }
+}
+// Listing 15-10: Implementing Deref on MyBox<T>
+```
+
+The **`type Target = T;` syntax defines an associated type for the Deref trait to use**. Associated types are a slightly different way of declaring a generic parameter.
+
+
+We fill in the body of the deref method with &self.0 so deref returns a reference to the value we want to access with the * operator; recall from the “Using Tuple Structs without Named Fields to Create Different Types” section of Chapter 5 that **.0 accesses the first value in a tuple struct.** The main function in Listing 15-9 that calls * on the MyBox<T> value now compiles, and the assertions pass!
+
+Without the Deref trait, the compiler can only dereference `&` references natively. The `deref` method **gives the compiler the ability to take a value of any type that implements Deref and call the deref method to get a & reference** that it knows how to dereference. Because deref gives a references back... a reference which the compiler can deference/follow to the actual value.
+
+When we entered `*y` in Listing 15-9, behind the scenes Rust actually ran this code:
+
+```rust
+*(y.deref())
+```
+
+Rust substitutes the `*` operator with a call to the `deref` method and then a plain dereference so we don’t have to think about whether or not we need to call the deref method. This Rust feature lets us write code that functions identically whether we have a regular reference or a type that implements Deref.
+
+The reason the `deref` method returns a reference to a value, and that the plain dereference outside the parentheses in *(y.deref()) is still necessary, is to do with the ownership system. If the deref method returned the value directly instead of a reference to the value, the value would be moved out of self. We don’t want to take ownership of the inner value inside MyBox<T> in this case or in most cases where we use the dereference operator.
+
+Note that the `*` operator is replaced with a call to the deref method and then a call to the * operator just once, each time we use a * in our code. Because the substitution of the * operator does not recurse infinitely, we end up with data of type i32, which matches the 5 in assert_eq! in Listing 15-9.
+
+### Implicit Deref Coercions with Functions and Methods
+
+`Deref coercion` converts a reference to a type that implements the Deref trait into a reference to another type. For example, **deref coercion can convert &String to &str because String implements the Deref trait such that it returns `&str.`** Deref coercion is a convenience Rust performs on arguments to functions and methods, and works only on types that implement the Deref trait. (probably because it calls `deref`) **It happens automatically when we pass a reference to a particular type’s value as an argument to a function or method that doesn’t match the parameter type in the function or method definition.** A sequence of calls to the `deref` method converts the type we provided into the type the parameter needs.
+
+
+Deref coercion was added to Rust so that programmers writing function and method calls don’t need to add as many explicit references and dereferences with & and *. The deref coercion feature also lets us write more code that can work for either references or smart pointers.
+
+To see `deref` coercion in action, let’s use the `MyBox<T>` type we defined in Listing 15-8 as well as the implementation of `Deref` that we added in Listing 15-10. Listing 15-11 shows the definition of a function that has a string slice parameter:
+
+```rust
+fn hello(name: &str) {
+    println!("Hello, {name}!");
+}
+// Listing 15-11: A hello function that has the parameter name of type &str
+```
+
+We can call the `hello` function with a string slice as an argument, such as `hello("Rust");` for example. `Deref` coercion makes it possible to call `hello` with a reference to a value of type `MyBox<String>`, as shown in Listing 15-12:
+
+```rust
+fn main() {
+    let m = MyBox::new(String::from("Rust"));
+    hello(&m);
+}
+// Listing 15-12: Calling hello with a reference to a MyBox<String> value, which works because of deref coercion
+```
+
+Here we’re calling the `hello` function with the argument `&m`, which is a reference to a `MyBox<String>` value. **Because we implemented the Deref trait on MyBox<T> in Listing 15-10, Rust can turn &MyBox<String> into &String by calling deref**. The standard library provides an implementation of Deref on String that returns a string slice, and this is in the API documentation for Deref. 
+
+Rust calls deref again to turn the &String into &str, which matches the hello function’s definition.
+
+If Rust didn’t implement deref coercion, we would have to write the code in Listing 15-13 instead of the code in Listing 15-12 to call hello with a value of type `&MyBox<String>`.
+
+```rust
+fn main() {
+    let m = MyBox::new(String::from("Rust"));
+    hello(&(*m)[..]);
+}
+// Listing 15-13: The code we would have to write if Rust didn’t have deref coercion
+```
+
+The (*m) dereferences the MyBox<String> into a String. Then the & and [..] take a string slice of the String that is equal to the whole string to match the signature of hello. This code without deref coercions is harder to read, write, and understand with all of these symbols involved. Deref coercion allows Rust to handle these conversions for us automatically.
+
+When the Deref trait is defined for the types involved, Rust will analyze the types and use Deref::deref as many times as necessary to get a reference to match the parameter’s type. The number of times that Deref::deref needs to be inserted is resolved at compile time, so there is no runtime penalty for taking advantage of deref coercion!
+
+
+### How Deref Coercion Interacts with Mutability
+Similar to how you use the `Deref` trait to override the `*` operator on immutable references, you can use the `DerefMut` trait to override the `*` operator on mutable references.
+
+Rust does deref coercion when it finds types and trait implementations in three cases:
+
+- From &T to &U when T: Deref<Target=U>
+- From &mut T to &mut U when T: DerefMut<Target=U>
+- From &mut T to &U when T: Deref<Target=U>
+
+The first two cases are the same as each other except that the second implements mutability. The first case states that if you have a &T, and T implements Deref to some type U, you can get a &U transparently. The second case states that the same deref coercion happens for mutable references.
+
+**The third case is trickier: Rust will also coerce a mutable reference to an immutable one. But the reverse is not possible: immutable references will never coerce to mutable references.** Because of the borrowing rules, if you have a mutable reference, that mutable reference must be the only reference to that data (otherwise, the program wouldn’t compile). Converting one mutable reference to one immutable reference will never break the borrowing rules. Converting an immutable reference to a mutable reference would require that the initial immutable reference is the only immutable reference to that data, but the borrowing rules don’t guarantee that (there can be multiple immutable references!). Therefore, Rust can’t make the assumption that converting an immutable reference to a mutable reference is possible.
+
+## Running Code on Cleanup with the Drop Trait
+
+Running Code on Cleanup with the Drop Trait
+The second trait important to the smart pointer pattern is Drop, which lets you customize what happens when a value is about to go out of scope. You can provide an implementation for the Drop trait on any type, and that code can be used to release resources like files or network connections.
+
+We’re introducing `Drop` in the context of smart pointers because the functionality of the Drop trait is almost always used when implementing a smart pointer. For example, when a `Box<T>` is dropped it will deallocate the space on the heap that the box points to.
+
+In some languages, for some types, the programmer must call code to free memory or resources every time they finish using an instance of those types. Examples include file handles, sockets, or locks. If they forget, the system might become overloaded and crash. **In Rust, you can specify that a particular bit of code be run whenever a value goes out of scope, and the compiler will insert this code automatically. **. As a result, you don’t need to be careful about placing cleanup code everywhere in a program that an instance of a particular type is finished with—you still won’t leak resources!
+
+You specify the code to run when a value goes out of scope by implementing the Drop trait. The Drop trait requires you to implement one method named drop that takes a mutable reference to self. To see when Rust calls drop, let’s implement drop with println! statements for now.
+
+Listing 15-14 shows a CustomSmartPointer struct whose only custom functionality is that it will print Dropping CustomSmartPointer! when the instance goes out of scope, to show when Rust runs the drop function.
+
+Filename: src/main.rs
+```rust
+struct CustomSmartPointer {
+    data: String,
+}
+
+impl Drop for CustomSmartPointer {
+    fn drop(&mut self) {
+        println!("Dropping CustomSmartPointer with data `{}`!", self.data);
+    }
+}
+
+fn main() {
+    let c = CustomSmartPointer {
+        data: String::from("my stuff"),
+    };
+    let d = CustomSmartPointer {
+        data: String::from("other stuff"),
+    };
+    println!("CustomSmartPointers created.");
+}
+// Listing 15-14: A CustomSmartPointer struct that implements the Drop trait where we would put our cleanup code
+```
+The `Drop` trait is included in the prelude, so we don’t need to bring it into scope. We implement the Drop trait on CustomSmartPointer and provide an implementation for the drop method that calls println!. The body of the drop function is where you would place any logic that you wanted to run when an instance of your type goes out of scope. We’re printing some text here to demonstrate visually when Rust will call drop.
+
+In `main`, we create two instances of `CustomSmartPointer` and then `print` CustomSmartPointers created. At the end of main, our instances of CustomSmartPointer will go out of scope, and Rust will call the code we put in the `drop` method, printing our final message. Note that we didn’t need to call the drop method explicitly.
+
+When we run this program, we’ll see the following output:
+```bash
+$ cargo run
+Compiling drop-example v0.1.0 (file:///projects/drop-example)
+Finished dev [unoptimized + debuginfo] target(s) in 0.60s
+Running `target/debug/drop-example`
+CustomSmartPointers created.
+Dropping CustomSmartPointer with data `other stuff`!
+Dropping CustomSmartPointer with data `my stuff`!
+```
+
+Rust automatically called `drop` for us when our instances went out of scope, calling the code we specified. **Variables are dropped in the reverse order of their creation, so d was dropped before c.**
