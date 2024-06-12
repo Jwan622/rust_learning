@@ -170,6 +170,124 @@ Boxes provide only the indirection and heap allocation; they don’t have any ot
 
 **The Box<T> type is a smart pointer because it implements the Deref trait, which allows Box<T> values to be treated like references. When a Box<T> value goes out of scope, the heap data that the box is pointing to is cleaned up as well because of the Drop trait implementation.** These two traits will be even more important to the functionality provided by the other smart pointer types we’ll discuss in the rest of this chapter. Let’s explore these two traits in more detail.)
 
+## Treating Smart Pointers Like Regular References with the Deref Trait
+
+Implementing the Deref trait allows you to customize the behavior of the dereference operator * (not to be confused with the multiplication or glob operator). By implementing Deref in such a way that a smart pointer can be treated like a regular reference, you can write code that operates on references and use that code with smart pointers too.
+
+Let’s first look at how the dereference operator works with regular references. Then we’ll try to define a custom type that behaves like Box<T>, and see why the dereference operator doesn’t work like a reference on our newly defined type. We’ll explore how implementing the Deref trait makes it possible for smart pointers to work in ways similar to references. Then we’ll look at Rust’s deref coercion feature and how it lets us work with either references or smart pointers.
+
+Note: there’s one big difference between the MyBox<T> type we’re about to build and the real Box<T>: our version will not store its data on the heap. We are focusing this example on Deref, so where the data is actually stored is less important than the pointer-like behavior.
+
+### Following the pointer to the Value
+
+Following the Pointer to the Value
+A regular reference is a type of pointer, and **one way to think of a pointer is as an arrow to a value stored somewhere else.** In Listing 15-6, we create a reference to an i32 value and then use the dereference operator to follow the reference to the value:
 
 
+```rust
+fn main() {
+    let x = 5;
+    let y = &x;
 
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
+// Listing 15-6: Using the dereference operator to follow a reference to an i32 value
+```
+
+The variable `x` holds an `i32` value `5`. We set `y` equal to a reference to `x`. We can assert that `x` is equal to `5`. However, **if we want to make an assertion about the value in y, we have to use *y to follow the reference to the value it’s pointing to (hence dereference) so the compiler can compare the actual value. Once we dereference y, we have access to the integer value y is pointing to that we can compare with 5.**
+
+If we tried to write `assert_eq!(5, y);` instead, we would get this compilation error:
+
+```bash
+$ cargo run
+Compiling deref-example v0.1.0 (file:///projects/deref-example)
+error[E0277]: can't compare `{integer}` with `&{integer}`
+--> src/main.rs:6:5
+|
+6 |     assert_eq!(5, y);
+|     ^^^^^^^^^^^^^^^^ no implementation for `{integer} == &{integer}`
+|
+= help: the trait `PartialEq<&{integer}>` is not implemented for `{integer}`
+= help: the following other types implement trait `PartialEq<Rhs>`:
+isize
+i8
+i16
+i32
+i64
+i128
+usize
+u8
+and 6 others
+= note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `deref-example` (bin "deref-example") due to 1 previous error
+```
+**Comparing a number and a reference to a number isn’t allowed because they’re different types. We must use the dereference operator to follow the reference to the value it’s pointing to.**
+
+### Using Box<T> Like a Reference
+
+We can rewrite the code in Listing 15-6 to use a Box<T> instead of a reference; the dereference operator used on the Box<T> in Listing 15-7 functions in the same way as the dereference operator used on the reference in Listing 15-6:
+
+```rust
+fn main() {
+    let x = 5;
+    let y = Box::new(x);
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
+// Listing 15-7: Using the dereference operator on a Box<i32>
+```
+
+The main difference between Listing 15-7 and Listing 15-6 is that here we set `y` to be an instance of a `Box<T>` pointing to a copied value of `x` rather than a reference pointing to the value of `x`. In the last assertion, **we can use the dereference operator to follow the pointer of the Box<T> in the same way that we did when `y` was a reference**. Next, we’ll explore what is special about `Box<T>` that enables us to use the dereference operator by defining our own type.
+
+### Defining Our Own Smart Pointer
+Let’s build a smart pointer similar to the `Box<T>` type provided by the standard library to experience how smart pointers behave differently from references by default. Then we’ll look at how to add the ability to use the dereference operator.
+
+The `Box<T>` type is ultimately defined as a tuple struct with one element, so Listing 15-8 defines a `MyBox<T>` type in the same way. We’ll also define a `new` function to match the `new` function defined on `Box<T>`.
+
+Filename: src/main.rs
+
+```rust
+struct MyBox<T>(T);
+
+impl<T> MyBox<T> {
+    fn new(x: T) -> MyBox<T> {
+        MyBox(x)
+    }
+}
+// Listing 15-8: Defining a MyBox<T> type
+```
+
+We define a struct named `MyBox` and declare a generic parameter `T`, because we want our type to hold values of any type. The `MyBox` type is a tuple struct with one element of type `T`. The `MyBox::new` function takes one parameter of type `T` and returns a `MyBox` instance that holds the value passed in.
+
+Let’s try adding the main function in Listing 15-7 to Listing 15-8 and changing it to use the MyBox<T> type we’ve defined instead of Box<T>. The code in Listing 15-9 **won’t compile because Rust doesn’t know how to dereference MyBox.**
+
+
+```rust
+// This code does not compile!
+fn main() {
+    let x = 5;
+    let y = MyBox::new(x);
+
+    assert_eq!(5, x);
+    assert_eq!(5, *y);
+}
+```
+
+Here’s the resulting compilation error:
+```bash
+$ cargo run
+Compiling deref-example v0.1.0 (file:///projects/deref-example)
+error[E0614]: type `MyBox<{integer}>` cannot be dereferenced
+--> src/main.rs:14:19
+|
+14 |     assert_eq!(5, *y);
+|                   ^^
+
+For more information about this error, try `rustc --explain E0614`.
+error: could not compile `deref-example` (bin "deref-example") due to 1 previous error
+```
+Our MyBox<T> type **can’t be dereferenced because we haven’t implemented that ability on our type.** To enable dereferencing with the * operator, we implement the Deref trait.
