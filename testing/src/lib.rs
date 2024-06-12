@@ -49,7 +49,7 @@ mod tests {
 
         assert!(!smaller.can_hold(&larger));
     }
-    
+
     #[test]
     fn greeting_contains_name() {
         let result = greeting("Carol");

@@ -391,3 +391,10 @@ mod tests {
 }
 ```
 
+
+### Checking for pancis with `should_panic`
+
+In addition to checking return values, it’s important to check that our code handles error conditions as we expect. For example, consider the `Guess` type that we created in Chapter 9, Listing 9-13. Other code that uses Guess depends on the guarantee that `Guess` instances will contain only values between 1 and 100. We can write a test that ensures that attempting to create a Guess instance with a value outside that range panics.
+
+
+
