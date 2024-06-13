@@ -654,3 +654,237 @@ What we can’t see in this example is that when b and then a go out of scope at
 Via immutable references, Rc<T> allows you to share data between multiple parts of your program for reading only. If Rc<T> allowed you to have multiple mutable references too, you might violate one of the borrowing rules discussed in Chapter 4: multiple mutable borrows to the same place can cause data races and inconsistencies. But being able to mutate data is very useful! In the next section, we’ll discuss the interior mutability pattern and the RefCell<T> type that you can use in conjunction with an Rc<T> to work with this immutability restriction.
 
 
+
+## RefCell<T> and the Interior Mutability Pattern
+
+**Interior mutability is a design pattern in Rust that allows you to mutate data even when there are immutable references to that data; normally, this action is disallowed by the borrowing rules.** To mutate data, the pattern uses unsafe code inside a data structure to bend Rust’s usual rules that govern mutation and borrowing. Unsafe code indicates to the compiler that we’re checking the rules manually instead of relying on the compiler to check them for us; we will discuss `unsafe` code more in Chapter 19.
+
+We can use types that use the interior mutability pattern **only when we can ensure that the borrowing rules will be followed at runtime**, even though the compiler can’t guarantee that. The unsafe code involved is then wrapped in a safe API, and the outer type is still immutable.
+
+### Enforcing Borrowing Rules at Runtime with RefCell<T>
+Unlike Rc<T>, the RefCell<T> type represents single ownership over the data it holds. So, what makes RefCell<T> different from a type like Box<T>? Recall the borrowing rules you learned in Chapter 4:
+
+- At any given time, you can have either (but not both) one mutable reference or any number of immutable references.
+- References must always be valid.
+
+- With references and Box<T>, the borrowing rules’ invariants are enforced at compile time. **With RefCell<T>, these invariants are enforced at runtime. With references, if you break these rules, you’ll get a compiler error.** With RefCell<T>, if you break these rules, your program will panic and exit.
+
+The advantages of checking the borrowing rules at compile time are that errors will be caught sooner in the development process, and there is no impact on runtime performance because all the analysis is completed beforehand. For those reasons, checking the borrowing rules at compile time is the best choice in the majority of cases, which is why this is Rust’s default.
+
+**The advantage of checking the borrowing rules at runtime instead is that certain memory-safe scenarios are then allowed, where they would’ve been disallowed by the compile-time checks. Static analysis, like the Rust compiler, is inherently conservative.** Some properties of code are impossible to detect by analyzing the code: the most famous example is the Halting Problem, which is beyond the scope of this book but is an interesting topic to research.
+
+Because some analysis is impossible, if the Rust compiler can’t be sure the code complies with the ownership rules, **it might reject a correct program; in this way, it’s conservative**. If Rust accepted an incorrect program, users wouldn’t be able to trust in the guarantees Rust makes. However, **if Rust rejects a correct program, the programmer will be inconvenienced, but nothing catastrophic can occur.** The `RefCell<T>` type is useful when you’re sure your code follows the borrowing rules but the compiler is unable to understand and guarantee that.
+
+Similar to Rc<T>, RefCell<T> is only for use in single-threaded scenarios and will give you a compile-time error if you try using it in a multithreaded context. We’ll talk about how to get the functionality of RefCell<T> in a multithreaded program in Chapter 16.
+
+Here is a recap of the reasons to choose Box<T>, Rc<T>, or RefCell<T>:
+
+- Rc<T> enables multiple owners of the same data; Box<T> and RefCell<T> have single owners.
+- Box<T> allows immutable or mutable borrows checked at compile time; Rc<T> allows only immutable borrows checked at compile time; RefCell<T> allows immutable or mutable borrows checked at runtime.
+- Because RefCell<T> allows mutable borrows checked at runtime, you can mutate the value inside the RefCell<T> even when the RefCell<T> is immutable.
+
+**Mutating the value inside an immutable value is the interior mutability pattern.** Let’s look at a situation in which interior mutability is useful and examine how it’s possible.
+
+### Interior Mutability: A mutable borrow to INterior Mutability
+
+A consequence of the borrowing rules is that when you have an immutable value, you can’t borrow it mutably. For example, this code won’t compile:
+
+```rust
+This code does not compile!
+fn main() { 
+    let x = 5;
+    let y = &mut x;
+}
+```
+If you tried to compile this code, you’d get the following error:
+
+```bash
+$ cargo run
+Compiling borrowing v0.1.0 (file:///projects/borrowing)
+error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable
+--> src/main.rs:3:13
+|
+3 |     let y = &mut x;
+|             ^^^^^^ cannot borrow as mutable
+|
+help: consider changing this to be mutable
+|
+2 |     let mut x = 5;
+|         +++
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `borrowing` (bin "borrowing") due to 1 previous error
+```
+
+However, there are situations in which it would be useful for a value to mutate itself in its methods but appear immutable to other code. **Code outside the value’s methods would not be able to mutate the value. Using RefCell<T> is one way to get the ability to have interior mutability**, but RefCell<T> doesn’t get around the borrowing rules completely: the borrow checker in the compiler allows this interior mutability, and the borrowing rules are checked at runtime instead. If you violate the rules, you’ll get a panic! instead of a compiler error.
+
+### A Use Case for Interior Mutability
+
+Sometimes during testing a programmer will use a type in place of another type, in order to observe particular behavior and assert it’s implemented correctly. This placeholder type is called a test double. Think of it in the sense of a “stunt double” in filmmaking, where a person steps in and substitutes for an actor to do a particular tricky scene. Test doubles stand in for other types when we’re running tests. Mock objects are specific types of test doubles that record what happens during a test so you can assert that the correct actions took place.
+
+Rust doesn’t have objects in the same sense as other languages have objects, and Rust doesn’t have mock object functionality built into the standard library as some other languages do. However, you can definitely create a struct that will serve the same purposes as a mock object.
+
+Here’s the scenario we’ll test: we’ll create a library that tracks a value against a maximum value and sends messages based on how close to the maximum value the current value is. This library could be used to keep track of a user’s quota for the number of API calls they’re allowed to make, for example.
+
+Our library will only provide the functionality of tracking how close to the maximum a value is and what the messages should be at what times. Applications that use our library will be expected to provide the mechanism for sending the messages: the application could put a message in the application, send an email, send a text message, or something else. The library doesn’t need to know that detail. All it needs is something that implements a trait we’ll provide called Messenger. Listing 15-20 shows the library code:
+
+```rust
+pub trait Messenger {
+    fn send(&self, msg: &str); // the object needs to implement this method
+}
+
+pub struct LimitTracker<'a, T: Messenger> {
+    messenger: &'a T,
+    value: usize,
+    max: usize,
+}
+
+impl<'a, T> LimitTracker<'a, T> 
+where
+    T: Messenger,
+{
+    pub fn new(messenger: &'a T, max: usize) -> LimitTracker<'a, T> {
+        LimitTracker {
+            messenger,
+            value: 0,
+            max,
+        }
+    }
+
+    pub fn set_value(&mut self, value: usize) {
+        self.value = value;
+
+        let percentage_of_max = self.value as f64 / self.max as f64;
+
+        if percentage_of_max >= 1.0 {
+            self.messenger.send("Error: You are over your quota!");
+        } else if percentage_of_max >= 0.9 {
+            self.messenger
+                .send("Urgent warning: You've used up over 90% of your quota!");
+        } else if percentage_of_max >= 0.75 {
+            self.messenger
+                .send("Warning: You've used up over 75% of your quota!");
+        }
+    }
+}
+// Listing 15-20: A library to keep track of how close a value is to a maximum value and warn when the value is at certain levels
+```
+One important part of this code is that the Messenger trait has one method called send that takes an immutable reference to self and the text of the message. This trait is the interface our mock object needs to implement so that the mock can be used in the same way a real object is. The other important part is that we want to test the behavior of the set_value method on the LimitTracker. We can change what we pass in for the value parameter, but `set_value` doesn’t return anything for us to make assertions on. We want to be able to say that if we create a `LimitTracker` with something that implements the Messenger trait and a particular value for max, when we pass different numbers for value, the messenger is told to send the appropriate messages. This all makse sense! Kind of like writing mock object tests!
+
+We need a mock object that, instead of sending an email or text message when we call send, will only keep track of the messages it’s told to send. We can create a new instance of the mock object, create a LimitTracker that uses the mock object, call the set_value method on LimitTracker, and then check that the mock object has the messages we expect. Listing 15-21 shows an attempt to implement a mock object to do just that, but the borrow checker won’t allow it:
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockMessenger {
+        sent_messages: Vec<String>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: vec![],
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        let mock_messenger = MockMessenger::new();
+        let mut limit_tracker = LimitTracker::new(&mock_messenger, 100);
+
+        limit_tracker.set_value(80);
+
+        assert_eq!(mock_messenger.sent_messages.len(), 1);
+    }
+}
+```
+
+This test code defines a `MockMessenger` struct that has a `sent_messages` field with a Vec of String values to keep track of the messages it’s told to send. We also define an associated function new to make it convenient to create new MockMessenger values that start with an empty list of messages. We then implement the Messenger trait for MockMessenger so we can give a MockMessenger to a LimitTracker. In the definition of the send method, we take the message passed in as a parameter and store it in the MockMessenger list of `sent_messages`.
+
+In the test, we’re testing what happens when the LimitTracker is told to set value to something that is more than 75 percent of the max value. First, we create a new MockMessenger, which will start with an empty list of messages. Then we create a new LimitTracker and give it a reference to the new MockMessenger and a max value of 100. We call the set_value method on the LimitTracker with a value of 80, which is more than 75 percent of 100. Then we assert that the list of messages that the MockMessenger is keeping track of should now have one message in it.
+
+However, there’s one problem with this test, as shown here:
+
+```bash
+$ cargo test
+Compiling limit-tracker v0.1.0 (file:///projects/limit-tracker)
+error[E0596]: cannot borrow `self.sent_messages` as mutable, as it is behind a `&` reference
+--> src/lib.rs:58:13
+|
+58 |             self.sent_messages.push(String::from(message));
+|             ^^^^^^^^^^^^^^^^^^ `self` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+|
+help: consider changing this to be a mutable reference
+|
+2  |     fn send(&mut self, msg: &str);
+|             ~~~~~~~~~
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `limit-tracker` (lib test) due to 1 previous error
+```
+
+We can’t modify the `MockMessenger` to keep track of the messages, because the `send` method takes an immutable reference to self. We're trying to mutate self and that isn't allowed because of the signature of the send method takes an immutable reference! We also can’t take the suggestion from the error text to use `&mut self` instead, because then the signature of send wouldn’t match the signature in the Messenger trait definition (feel free to try and see what error message you get).
+
+This is a situation in which interior mutability can help! We’ll store the `sent_messages` within a `RefCell<T>`, and then the send method will be able to modify `sent_messages` to store the messages we’ve seen. Listing 15-22 shows what that looks like:
+
+Filename: src/lib.rs
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct MockMessenger {
+        sent_messages: RefCell<Vec<String>>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: RefCell::new(vec![]),
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.borrow_mut().push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        // --snip--
+
+        assert_eq!(mock_messenger.sent_messages.borrow().len(), 1);
+    }
+}
+// Listing 15-22: Using RefCell<T> to mutate an inner value while the outer value is considered immutable
+```
+
+The `sent_messages` field is now of type `RefCell<Vec<String>>` instead of `Vec<String>`. In the new function, we create a new `RefCell<Vec<String>>` instance around the empty vector.
+
+For the implementation of the `send` method, the first parameter is still an immutable borrow of self, which matches the trait definition. We call borrow_mut on the RefCell<Vec<String>> in self.sent_messages to get a mutable reference to the value inside the RefCell<Vec<String>>, which is the vector. Then we can call push on the mutable reference to the vector to keep track of the messages sent during the test.
+
+The last change we have to make is in the assertion: to see how many items are in the inner vector, we call `borrow` on the RefCell<Vec<String>> to get an immutable reference to the vector.
+
+
+
+### Keeping Track of Borrows at Runtime with RefCell<T>
+When creating immutable and mutable references,**we use the `&` and `&mut` syntax, respectively. With `RefCell<T>`, we use the `borrow` and `borrow_mut` methods**, which are part of the safe API that belongs to RefCell<T>. The borrow method returns the smart pointer type Ref<T>, and borrow_mut returns the smart pointer type RefMut<T>. Both types implement Deref, so we can treat them like regular references.
+
+The `RefCell<T>` keeps track of how many Ref<T> and RefMut<T> smart pointers are currently active. Every time we call borrow, the RefCell<T> increases its count of how many immutable borrows are active. When a Ref<T> value goes out of scope, the count of immutable borrows goes down by one. **Just like the compile-time borrowing rules, RefCell<T> lets us have many immutable borrows or one mutable borrow at any point in time.**
+
+**If we try to violate these rules, rather than getting a compiler error as we would with references, the implementation of RefCell<T> will panic at runtime.** Listing 15-23 shows a modification of the implementation of send in Listing 15-22. We’re deliberately trying to create two mutable borrows active for the same scope to illustrate that RefCell<T> prevents us from doing this at runtime.
+
+## Topics:
+- Halting Problem
+- borrow, borrow_mut on RefCall<T>
