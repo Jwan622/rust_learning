@@ -46,3 +46,59 @@ impl Board {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_make_move_success() {
+        let mut board = Board::new();
+
+        assert!(board.make_move(0, 0, 'X'));
+
+        assert_eq!(board.cells[0][0], 'X');
+    }
+
+    #[test]
+    fn test_make_move_failure() {
+        let mut board = Board::new();
+
+        board.make_move(0, 0, 'X');
+
+        assert!(!board.make_move(0, 0, 'O'));
+        assert_eq!(board.cells[0][0], 'X')
+    }
+
+    #[test]
+    fn test_check_winner_row() {
+        let mut board = Board::new();
+
+        board.make_move(0, 0, 'X');
+        board.make_move(0, 1, 'X');
+        board.make_move(0, 2, 'X');
+
+        assert_eq!(board.check_winner(), Some('X')); // Row winner
+    }
+
+    #[test]
+    fn test_check_winner_diagonal() {
+        let mut board = Board::new();
+
+        board.make_move(0, 0, 'O');
+        board.make_move(1, 1, 'O');
+        board.make_move(2, 2, 'O');
+
+        assert_eq!(board.check_winner(), Some('O')); // Diagonal winner
+    }
+
+    #[test]
+    fn test_check_no_winner() {
+        let mut board = Board::new();
+
+        board.make_move(0, 0, 'X');
+        board.make_move(1, 1, 'O');
+
+        assert_eq!(board.check_winner(), None); // No winner yet
+    }
+}

@@ -1,5 +1,5 @@
 [package]
-name = "tic_tac_toe"
+name = "tic_tac_toe"  # The crate name
 version = "0.1.0"
 edition = "2021"
 
