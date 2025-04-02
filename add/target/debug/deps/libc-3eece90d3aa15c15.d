@@ -1,0 +1,12 @@
+/Users/jwan/rust_learning/add/target/debug/deps/liblibc-3eece90d3aa15c15.rmeta: /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/lib.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/macros.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/primitives.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/aarch64/mod.rs
+
+/Users/jwan/rust_learning/add/target/debug/deps/libc-3eece90d3aa15c15.d: /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/lib.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/macros.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/primitives.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/mod.rs /Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/aarch64/mod.rs
+
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/lib.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/macros.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/primitives.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/mod.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/mod.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/mod.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/mod.rs:
+/Users/jwan/.cargo/registry/src/index.crates.io-6f17d22bba15001f/libc-0.2.171/src/unix/bsd/apple/b64/aarch64/mod.rs:
